@@ -1,0 +1,6 @@
+{
+  "name": "Clase Interactiva: Gases Ideales y Fisiología Respiratoria",
+  "description": "Video clases educativas universitarias presentadas por Aquila, mascota de la Universidad Católica de Cuenca, sobre gases ideales, fisiología respiratoria, química orgánica, biomoléculas y membranas biológicas con simulaciones interactivas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
