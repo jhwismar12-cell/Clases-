@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   GraduationCap,
   Play,
   Pause,
   RotateCcw,
-  Sparkles,
   BookOpen,
   Sliders,
   Maximize,
@@ -23,32 +22,63 @@ import {
 import { UNIVERSITY_INFO, SCRIPT_SCENES } from './data/scriptData';
 import { MASTERCLASS_COURSES } from './data/coursesData';
 import { ScriptScene, MascotMood, SceneSpeechSegment } from './types';
-import { prepareTextForSpeech } from './utils/speechUtils';
+import { prepareTextForSpeech, splitTextIntoSpeechChunks } from './utils/speechUtils';
 import { MascotAquila } from './components/MascotAquila';
 import { VideoPlayerControls } from './components/VideoPlayerControls';
+import { SceneBlock1Pillars } from './components/simulations/SceneBlock1Pillars';
+import { SceneBlock1Bioenergetics } from './components/simulations/SceneBlock1Bioenergetics';
+import { SceneBlock1ChemicalBonds } from './components/simulations/SceneBlock1ChemicalBonds';
+import { SceneBlock1InorganicFunctions } from './components/simulations/SceneBlock1InorganicFunctions';
+import { SceneBlock1WaterTonicity } from './components/simulations/SceneBlock1WaterTonicity';
+import { SceneBlock1AcidBaseBalance } from './components/simulations/SceneBlock1AcidBaseBalance';
+import { SceneBlock1ClinicalChallenge } from './components/simulations/SceneBlock1ClinicalChallenge';
 import { Scene1KineticTheory } from './components/simulations/Scene1KineticTheory';
 import { Scene2StateVariables } from './components/simulations/Scene2StateVariables';
 import { Scene3GasLawsSimulator } from './components/simulations/Scene3GasLawsSimulator';
+import { SceneBlock2CombinedAvogadro } from './components/simulations/SceneBlock2CombinedAvogadro';
 import { Scene4IdealGasSynthesis } from './components/simulations/Scene4IdealGasSynthesis';
 import { Scene5GasMixtures } from './components/simulations/Scene5GasMixtures';
 import { Scene6RespiratoryPhysiology } from './components/simulations/Scene6RespiratoryPhysiology';
+import { SceneBlock2GasTransportHb } from './components/simulations/SceneBlock2GasTransportHb';
 import { Scene7ClinicalChallenge } from './components/simulations/Scene7ClinicalChallenge';
 import { SceneBio1CarbonOrigin } from './components/simulations/SceneBio1CarbonOrigin';
 import { SceneBio2Carbohydrates } from './components/simulations/SceneBio2Carbohydrates';
 import { SceneBio3DisaccharidesHaworth } from './components/simulations/SceneBio3DisaccharidesHaworth';
 import { SceneBio4LipidsTriglycerides } from './components/simulations/SceneBio4LipidsTriglycerides';
 import { SceneBio5SpecializedLipids } from './components/simulations/SceneBio5SpecializedLipids';
+import { SceneBioProteinsEnzymes } from './components/simulations/SceneBioProteinsEnzymes';
 import { SceneBio6FluidMosaicMembrane } from './components/simulations/SceneBio6FluidMosaicMembrane';
+import { SceneBioSolvedProblems } from './components/simulations/SceneBioSolvedProblems';
 import { SceneBio7BiomoleculesChallenge } from './components/simulations/SceneBio7BiomoleculesChallenge';
-import { ImageGeneratorModal } from './components/ImageGeneratorModal';
+import { SceneBioBlock3ExamQuiz } from './components/simulations/SceneBioBlock3ExamQuiz';
 import { AquilaTutorChat } from './components/AquilaTutorChat';
 import { AcademicGlossaryDrawer } from './components/AcademicGlossaryDrawer';
 import { GlossaryHighlighter } from './components/GlossaryHighlighter';
 
 export default function App() {
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('biomoleculas-membranas');
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('bloque-1-materia-energia');
   const currentCourse = MASTERCLASS_COURSES.find((c) => c.id === selectedCourseId) || MASTERCLASS_COURSES[0];
-  const scenes = currentCourse.scenes;
+
+  // Calibrate scene timings to match actual speech segment durations with smooth 3s outro transitions
+  const scenes = useMemo(() => {
+    let accumulatedStart = 0;
+    return currentCourse.scenes.map((scene) => {
+      const lastSeg = scene.speechSegments[scene.speechSegments.length - 1];
+      const speechNeeded = lastSeg
+        ? lastSeg.timestampStart + lastSeg.duration + 3
+        : scene.durationSeconds;
+      const sceneDuration = Math.max(25, speechNeeded);
+      const sceneStart = accumulatedStart;
+      accumulatedStart += sceneDuration;
+
+      return {
+        ...scene,
+        startSeconds: sceneStart,
+        durationSeconds: sceneDuration,
+      };
+    });
+  }, [currentCourse]);
+
   const [currentSceneIndex, setCurrentSceneIndex] = useState<number>(0);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -58,27 +88,6 @@ export default function App() {
   const [isInteractiveMode, setIsInteractiveMode] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'video' | 'guion' | 'mascota'>('video');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
-  const [customVisualsByScene, setCustomVisualsByScene] = useState<Record<string, string>>({});
-
-  const handleSelectCourse = (courseId: string) => {
-    stopSpeech();
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setCurrentSceneIndex(0);
-    playedSegmentIdsRef.current.clear();
-    setSelectedCourseId(courseId);
-  };
-
-  // Modals
-  const [isImageGenOpen, setIsImageGenOpen] = useState<boolean>(false);
-  const [isTutorOpen, setIsTutorOpen] = useState<boolean>(false);
-  const [isGlossaryOpen, setIsGlossaryOpen] = useState<boolean>(false);
-  const [selectedGlossaryTermId, setSelectedGlossaryTermId] = useState<string | null>(null);
-
-  const handleOpenGlossaryTerm = (termId: string) => {
-    setSelectedGlossaryTermId(termId);
-    setIsGlossaryOpen(true);
-  };
 
   // Mascot state
   const [mascotMood, setMascotMood] = useState<MascotMood>('explaining');
@@ -91,8 +100,71 @@ export default function App() {
   const spanishVoiceRef = useRef<SpeechSynthesisVoice | null>(null);
   const currentSpeakingIdRef = useRef<string>('');
   const playedSegmentIdsRef = useRef<Set<string>>(new Set());
-  const keepAliveTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const speechSynthUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const activeUtterancesRef = useRef<SpeechSynthesisUtterance[]>([]);
+  const speechSessionIdRef = useRef<number>(0);
+  const transitionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Synchronized refs for asynchronous speech and interval callbacks
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  const voiceEnabledRef = useRef<boolean>(voiceEnabled);
+  const playbackSpeedRef = useRef<number>(playbackSpeed);
+  const currentSceneIndexRef = useRef<number>(currentSceneIndex);
+  const scenesRef = useRef<ScriptScene[]>(scenes);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    playbackSpeedRef.current = playbackSpeed;
+  }, [playbackSpeed]);
+
+  useEffect(() => {
+    currentSceneIndexRef.current = currentSceneIndex;
+  }, [currentSceneIndex]);
+
+  useEffect(() => {
+    scenesRef.current = scenes;
+  }, [scenes]);
+
+  // Clean, complete stop of speech without browser stutter or dangling state
+  const stopSpeech = useCallback(() => {
+    speechSessionIdRef.current++;
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    activeUtterancesRef.current = [];
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+    currentSpeakingIdRef.current = '';
+  }, []);
+
+  const handleSelectCourse = (courseId: string) => {
+    stopSpeech();
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setCurrentSceneIndex(0);
+    playedSegmentIdsRef.current.clear();
+    setSelectedCourseId(courseId);
+  };
+
+  // Modals
+  const [isTutorOpen, setIsTutorOpen] = useState<boolean>(false);
+  const [isGlossaryOpen, setIsGlossaryOpen] = useState<boolean>(false);
+  const [selectedGlossaryTermId, setSelectedGlossaryTermId] = useState<string | null>(null);
+
+  const handleOpenGlossaryTerm = (termId: string) => {
+    setSelectedGlossaryTermId(termId);
+    setIsGlossaryOpen(true);
+  };
 
   const currentScene = scenes[currentSceneIndex] || scenes[0];
   const totalDuration = scenes.reduce((acc, s) => acc + s.durationSeconds, 0);
@@ -102,6 +174,7 @@ export default function App() {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
+        if (!voices || voices.length === 0) return;
         const preferredVoice =
           voices.find((v) => v.lang === 'es-EC') ||
           voices.find((v) => v.lang === 'es-ES') ||
@@ -118,93 +191,143 @@ export default function App() {
     }
   }, []);
 
-  // Prevent Chromium/WebKit 15-second speech cutoff bug
-  const startSpeechKeepAlive = () => {
-    if (keepAliveTimerRef.current) clearInterval(keepAliveTimerRef.current);
-    keepAliveTimerRef.current = setInterval(() => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-        }
+  // Continuous, chunked Speech Synthesis engine (prevents Chrome 15s freeze & eliminates abrupt pauses)
+  const speakCurrentSpeech = useCallback(
+    (segment: SceneSpeechSegment, targetSceneIndex?: number) => {
+      if (!voiceEnabledRef.current || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+        return;
       }
-    }, 9000);
-  };
 
-  const stopSpeechKeepAlive = () => {
-    if (keepAliveTimerRef.current) {
-      clearInterval(keepAliveTimerRef.current);
-      keepAliveTimerRef.current = null;
-    }
-  };
+      const activeSceneIdx = targetSceneIndex !== undefined ? targetSceneIndex : currentSceneIndexRef.current;
 
-  const stopSpeech = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // Cancel prior transition timers and increment session
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+        transitionTimeoutRef.current = null;
+      }
       window.speechSynthesis.cancel();
-    }
-    stopSpeechKeepAlive();
-    setIsSpeaking(false);
-    isSpeakingRef.current = false;
-    currentSpeakingIdRef.current = '';
-  };
+      const sessionId = ++speechSessionIdRef.current;
 
-  // Synchronize Speech Synthesis (Aquila's Academic Voice)
-  const speakCurrentSpeech = (segment: SceneSpeechSegment) => {
-    if (!voiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return;
-    }
+      const formattedText = prepareTextForSpeech(segment.text);
+      const chunks = splitTextIntoSpeechChunks(formattedText);
+      if (chunks.length === 0) return;
 
-    // Do not restart if already speaking this exact segment
-    if (currentSpeakingIdRef.current === segment.id && isSpeakingRef.current) {
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    stopSpeechKeepAlive();
-
-    const formattedText = prepareTextForSpeech(segment.text);
-    const utterance = new SpeechSynthesisUtterance(formattedText);
-    utterance.lang = 'es-ES';
-    if (spanishVoiceRef.current) {
-      utterance.voice = spanishVoiceRef.current;
-    }
-
-    // Dynamic tempo based on playback speed (calibrated for academic articulation)
-    utterance.rate = Math.max(0.85, Math.min(1.4, playbackSpeed * 1.0));
-    utterance.pitch = 1.05;
-
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      isSpeakingRef.current = true;
+      setCurrentSpeechText(segment.text);
       currentSpeakingIdRef.current = segment.id;
-      startSpeechKeepAlive();
-    };
+      playedSegmentIdsRef.current.add(segment.id);
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      isSpeakingRef.current = false;
-      currentSpeakingIdRef.current = '';
-      stopSpeechKeepAlive();
-    };
+      let chunkIdx = 0;
 
-    utterance.onerror = (e) => {
-      if (e.error !== 'canceled' && e.error !== 'interrupted') {
-        console.warn('Speech synthesis notice:', e.error);
-      }
-      setIsSpeaking(false);
-      isSpeakingRef.current = false;
-      currentSpeakingIdRef.current = '';
-      stopSpeechKeepAlive();
-    };
+      const playNextChunk = () => {
+        if (speechSessionIdRef.current !== sessionId) return;
 
-    // Keep global reference on window to prevent garbage collection abort
-    (window as any).__aquilaUtterance = utterance;
-    speechSynthUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  };
+        // When all sentence chunks of this segment have finished speaking:
+        if (chunkIdx >= chunks.length) {
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          currentSpeakingIdRef.current = '';
+          activeUtterancesRef.current = [];
+
+          if (!isPlayingRef.current || !voiceEnabledRef.current) return;
+
+          const curScenes = scenesRef.current;
+          const curSc = curScenes[activeSceneIdx];
+          if (!curSc) return;
+
+          const segIdx = curSc.speechSegments.findIndex((s) => s.id === segment.id);
+          if (segIdx !== -1 && segIdx < curSc.speechSegments.length - 1) {
+            // Next segment in the current scene: natural 400ms pedagogical breath
+            const nextSeg = curSc.speechSegments[segIdx + 1];
+            transitionTimeoutRef.current = setTimeout(() => {
+              if (speechSessionIdRef.current !== sessionId) return;
+              if (isPlayingRef.current && voiceEnabledRef.current) {
+                setCurrentTime(curSc.startSeconds + nextSeg.timestampStart);
+                speakCurrentSpeech(nextSeg, activeSceneIdx);
+              }
+            }, 400);
+          } else if (activeSceneIdx < curScenes.length - 1) {
+            // Last segment of scene: 1.8s reflection buffer, then transition smoothly to next scene
+            transitionTimeoutRef.current = setTimeout(() => {
+              if (speechSessionIdRef.current !== sessionId) return;
+              if (isPlayingRef.current && voiceEnabledRef.current) {
+                const nextSceneIdx = activeSceneIdx + 1;
+                setCurrentSceneIndex(nextSceneIdx);
+                const nextSc = curScenes[nextSceneIdx];
+                setCurrentTime(nextSc.startSeconds);
+                playedSegmentIdsRef.current.clear();
+                const firstSeg = nextSc.speechSegments[0];
+                if (firstSeg) {
+                  speakCurrentSpeech(firstSeg, nextSceneIdx);
+                }
+              }
+            }, 1800);
+          } else {
+            // End of entire course lecture reached smoothly
+            setIsPlaying(false);
+          }
+          return;
+        }
+
+        const chunkText = chunks[chunkIdx];
+        chunkIdx++;
+
+        const utterance = new SpeechSynthesisUtterance(chunkText);
+        utterance.lang = 'es-ES';
+        if (spanishVoiceRef.current) {
+          utterance.voice = spanishVoiceRef.current;
+        }
+
+        // Calibrated academic tempo and pitch
+        utterance.rate = Math.max(0.85, Math.min(1.35, playbackSpeedRef.current * 1.0));
+        utterance.pitch = 1.04;
+
+        // Dispatch word boundaries to drive beak lip-sync & teleprompter
+        utterance.onboundary = (e: SpeechSynthesisEvent) => {
+          if (typeof window !== 'undefined' && e.name === 'word') {
+            window.dispatchEvent(
+              new CustomEvent('aquila-speech-word', {
+                detail: {
+                  charIndex: e.charIndex,
+                  charLength: e.charLength,
+                  text: chunkText,
+                },
+              })
+            );
+          }
+        };
+
+        utterance.onstart = () => {
+          if (speechSessionIdRef.current !== sessionId) return;
+          setIsSpeaking(true);
+          isSpeakingRef.current = true;
+        };
+
+        utterance.onend = () => {
+          if (speechSessionIdRef.current !== sessionId) return;
+          // Chain to next sentence chunk immediately with zero audible gap
+          playNextChunk();
+        };
+
+        utterance.onerror = (e) => {
+          if (e.error !== 'canceled' && e.error !== 'interrupted') {
+            console.warn('Speech synthesis notice:', e.error);
+          }
+          if (speechSessionIdRef.current !== sessionId) return;
+          playNextChunk();
+        };
+
+        // Protect from browser garbage collection
+        activeUtterancesRef.current = [utterance];
+        (window as any).__aquilaUtterance = utterance;
+        window.speechSynthesis.speak(utterance);
+      };
+
+      playNextChunk();
+    },
+    []
+  );
 
   // Determine current active speech segment based on relative time in scene
-  // PREVENTS looping back to speechSegments[0] once past dialogue duration!
   const sceneRelativeTime = Math.max(0, currentTime - currentScene.startSeconds);
   let activeSpeechSegment = currentScene.speechSegments.find(
     (seg) =>
@@ -218,56 +341,54 @@ export default function App() {
     if (firstSeg && sceneRelativeTime < firstSeg.timestampStart) {
       activeSpeechSegment = firstSeg;
     } else if (lastSeg) {
-      // Stay on the last dialogue segment; DO NOT loop back to the first segment!
       activeSpeechSegment = lastSeg;
     }
   }
 
   const currentSpeechSegment = activeSpeechSegment || currentScene.speechSegments[0];
 
-  // Update current speech text and trigger speech synthesis when segment changes
+  // Update teleprompter text to reflect current segment
   useEffect(() => {
     if (currentSpeechSegment) {
       setCurrentSpeechText(currentSpeechSegment.text);
-      if (isPlaying && voiceEnabled) {
-        if (!playedSegmentIdsRef.current.has(currentSpeechSegment.id)) {
-          playedSegmentIdsRef.current.add(currentSpeechSegment.id);
-          speakCurrentSpeech(currentSpeechSegment);
-        }
-      }
     }
-  }, [currentSpeechSegment?.id, isPlaying, voiceEnabled]);
+  }, [currentSpeechSegment?.id, currentSpeechSegment?.text]);
 
-  // Main playback timer loop with speech awareness
+  // Main playback timer: tracks progress smoothly without chopping speech mid-sentence
   useEffect(() => {
     if (isPlaying && !isInteractiveMode) {
       timerRef.current = setInterval(() => {
         setCurrentTime((prevTime) => {
-          // If voice is enabled and Aquila is still speaking:
-          // HOLD the timer if we are at the end of the current speech segment,
-          // guaranteeing Aquila NEVER gets cut off before finishing his dialogue!
+          // If voice is speaking, do not pass the segment end time until utterance finishes!
           if (voiceEnabled && isSpeakingRef.current && currentSpeechSegment) {
-            const segmentEndTime =
-              currentScene.startSeconds +
-              currentSpeechSegment.timestampStart +
-              currentSpeechSegment.duration;
-            if (prevTime + 1 * playbackSpeed >= segmentEndTime) {
-              return prevTime; // Hold timer until speech utterance completes naturally!
+            const curSc = scenes[currentSceneIndex];
+            if (curSc) {
+              const segEndTime =
+                curSc.startSeconds +
+                currentSpeechSegment.timestampStart +
+                currentSpeechSegment.duration;
+              if (prevTime + 1 * playbackSpeed >= segEndTime) {
+                return segEndTime; // Hold gently at boundary until speech chunk finishes
+              }
             }
           }
 
           const nextTime = prevTime + 1 * playbackSpeed;
           if (nextTime >= totalDuration) {
-            setIsPlaying(false);
-            stopSpeech();
-            return 0;
+            if (!voiceEnabled) {
+              setIsPlaying(false);
+              stopSpeech();
+              return 0;
+            }
+            return totalDuration;
           }
 
-          // Check if we advanced to next scene
-          const currentSceneEnd = currentScene.startSeconds + currentScene.durationSeconds;
-          if (nextTime >= currentSceneEnd && currentSceneIndex < scenes.length - 1) {
-            setCurrentSceneIndex((idx) => idx + 1);
-            playedSegmentIdsRef.current.clear();
+          // If voice is disabled, timer handles scene advancement
+          if (!voiceEnabled) {
+            const currentSceneEnd = currentScene.startSeconds + currentScene.durationSeconds;
+            if (nextTime >= currentSceneEnd && currentSceneIndex < scenes.length - 1) {
+              setCurrentSceneIndex((idx) => idx + 1);
+            }
           }
 
           return nextTime;
@@ -275,7 +396,6 @@ export default function App() {
       }, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
-      stopSpeech();
     }
 
     return () => {
@@ -285,12 +405,13 @@ export default function App() {
     isPlaying,
     isInteractiveMode,
     playbackSpeed,
-    currentSceneIndex,
-    scenes.length,
-    totalDuration,
     voiceEnabled,
+    currentSceneIndex,
+    scenes,
+    totalDuration,
     currentScene,
     currentSpeechSegment,
+    stopSpeech,
   ]);
 
   // Toggle play/pause
@@ -298,8 +419,7 @@ export default function App() {
     if (!isPlaying) {
       setIsPlaying(true);
       if (voiceEnabled && currentSpeechSegment) {
-        playedSegmentIdsRef.current.delete(currentSpeechSegment.id);
-        speakCurrentSpeech(currentSpeechSegment);
+        speakCurrentSpeech(currentSpeechSegment, currentSceneIndex);
       }
     } else {
       setIsPlaying(false);
@@ -307,17 +427,51 @@ export default function App() {
     }
   };
 
-  // Seek handler
+  // Toggle voice mute
+  const handleToggleVoice = () => {
+    if (voiceEnabled) {
+      stopSpeech();
+      setVoiceEnabled(false);
+    } else {
+      setVoiceEnabled(true);
+      if (isPlaying && currentSpeechSegment) {
+        speakCurrentSpeech(currentSpeechSegment, currentSceneIndex);
+      }
+    }
+  };
+
+  // Speed change handler with seamless speech continuation
+  const handleChangeSpeed = (newSpeed: number) => {
+    setPlaybackSpeed(newSpeed);
+    if (isPlaying && voiceEnabled && currentSpeechSegment && isSpeakingRef.current) {
+      speakCurrentSpeech(currentSpeechSegment, currentSceneIndex);
+    }
+  };
+
+  // Seek handler: jumps directly to requested second and speaks requested segment
   const handleSeek = (seconds: number) => {
     stopSpeech();
     playedSegmentIdsRef.current.clear();
     setCurrentTime(seconds);
-    // Find scene matching this timestamp
+
     const foundIdx = scenes.findIndex(
       (s) => seconds >= s.startSeconds && seconds < s.startSeconds + s.durationSeconds
     );
+    const targetSceneIdx = foundIdx !== -1 ? foundIdx : currentSceneIndex;
     if (foundIdx !== -1 && foundIdx !== currentSceneIndex) {
       setCurrentSceneIndex(foundIdx);
+    }
+
+    if (isPlaying && voiceEnabled) {
+      const targetScene = scenes[targetSceneIdx];
+      const relTime = Math.max(0, seconds - targetScene.startSeconds);
+      const matchedSeg =
+        targetScene.speechSegments.find(
+          (seg) => relTime >= seg.timestampStart && relTime < seg.timestampStart + seg.duration
+        ) || targetScene.speechSegments[0];
+      if (matchedSeg) {
+        speakCurrentSpeech(matchedSeg, targetSceneIdx);
+      }
     }
   };
 
@@ -329,6 +483,12 @@ export default function App() {
     if (idx !== -1) {
       setCurrentSceneIndex(idx);
       setCurrentTime(scenes[idx].startSeconds);
+      if (isPlaying && voiceEnabled) {
+        const firstSeg = scenes[idx].speechSegments[0];
+        if (firstSeg) {
+          speakCurrentSpeech(firstSeg, idx);
+        }
+      }
     }
   };
 
@@ -338,16 +498,8 @@ export default function App() {
     playedSegmentIdsRef.current.clear();
     setCurrentTime(currentScene.startSeconds);
     if (voiceEnabled && isPlaying && currentSpeechSegment) {
-      speakCurrentSpeech(currentSpeechSegment);
+      speakCurrentSpeech(currentSpeechSegment, currentSceneIndex);
     }
-  };
-
-  // Apply custom AI generated image to current scene
-  const handleApplyImageToScene = (imageUrl: string) => {
-    setCustomVisualsByScene((prev) => ({
-      ...prev,
-      [`${currentCourse.id}-${currentScene.id}`]: imageUrl,
-    }));
   };
 
   // Fullscreen toggle
@@ -410,7 +562,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-neutral-400 truncate max-w-xs sm:max-w-md md:max-w-lg">
-                {UNIVERSITY_INFO.course} • Cátedra con Prof. Aquila
+                {UNIVERSITY_INFO.course} • Cátedra con Prof. Aguilar
               </p>
             </div>
           </div>
@@ -456,7 +608,7 @@ export default function App() {
               }`}
             >
               <Award className="w-3.5 h-3.5" />
-              <span>Identidad Aquila</span>
+              <span>Profesor Aguilar</span>
               {activeTab === 'mascota' && (
                 <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E51B23] rounded-full" />
               )}
@@ -481,22 +633,11 @@ export default function App() {
             {/* Tutor IA Button */}
             <button
               onClick={() => setIsTutorOpen(true)}
-              className="hidden lg:flex items-center gap-1.5 px-3 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded-lg text-xs font-semibold border border-neutral-700 transition-colors"
-              title="Consultar al Prof. Aquila con IA"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#E51B23] hover:bg-[#c4141b] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+              title="Consultar al Prof. Aguilar con IA"
             >
-              <MessageSquare className="w-3.5 h-3.5 text-[#E51B23]" />
+              <MessageSquare className="w-3.5 h-3.5" />
               <span>Tutor IA</span>
-            </button>
-
-            {/* Primary Red Button */}
-            <button
-              onClick={() => setIsImageGenOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-[#E51B23] hover:bg-[#c4141b] text-white rounded-lg font-semibold text-xs shadow-xs transition-colors"
-              title="Generador de Imágenes Gemini"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Generar Ilustración</span>
-              <span className="sm:hidden">Ilustración</span>
             </button>
 
             {/* Mobile Menu Toggle */}
@@ -560,7 +701,7 @@ export default function App() {
             >
               <div className="flex items-center gap-2">
                 <Award className="w-4 h-4" />
-                <span>Identidad Aquila</span>
+                <span>Profesor Aguilar</span>
               </div>
               {activeTab === 'mascota' && <span className="text-[10px] uppercase font-bold">Activo</span>}
             </button>
@@ -584,7 +725,7 @@ export default function App() {
                 className="w-full text-left px-3 py-2 rounded-lg text-xs font-semibold text-neutral-300 hover:bg-neutral-900 flex items-center gap-2"
               >
                 <MessageSquare className="w-4 h-4 text-[#E51B23]" />
-                <span>Consultorio Académico IA (Prof. Aquila)</span>
+                <span>Consultorio Académico IA (Prof. Aguilar)</span>
               </button>
             </div>
           </div>
@@ -609,27 +750,36 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-neutral-100/80 p-1 rounded-lg self-start md:self-auto">
+          <div className="flex flex-wrap items-center gap-1.5 bg-neutral-100/90 p-1.5 rounded-xl self-start md:self-auto">
             {MASTERCLASS_COURSES.map((course) => (
               <button
                 key={course.id}
                 onClick={() => handleSelectCourse(course.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${
                   selectedCourseId === course.id
-                    ? 'bg-white text-[#E51B23] shadow-xs font-bold'
-                    : 'text-neutral-600 hover:text-neutral-900'
+                    ? 'bg-white text-[#E51B23] shadow-sm font-bold ring-1 ring-neutral-200'
+                    : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-200/60'
                 }`}
               >
                 <span
-                  className="w-2 h-2 rounded-full"
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
                   style={{ backgroundColor: selectedCourseId === course.id ? '#E51B23' : '#9ca3af' }}
                 />
-                <span className="truncate">{course.shortTitle}</span>
-                {course.id === 'biomoleculas-membranas' && (
-                  <span className="text-[9px] bg-red-100 text-[#E51B23] px-1.5 py-0.5 rounded font-mono font-bold">
-                    Nuevo
-                  </span>
-                )}
+                <div className="text-left">
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate font-bold">{course.shortTitle}</span>
+                    {course.blockNumber === 1 && (
+                      <span className="text-[9px] bg-red-100 text-[#E51B23] px-1.5 py-0.2 rounded font-mono font-bold">
+                        Actual
+                      </span>
+                    )}
+                  </div>
+                  {course.dates && (
+                    <span className="text-[10px] text-neutral-400 block font-mono font-normal">
+                      {course.dates}
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
           </div>
@@ -664,23 +814,37 @@ export default function App() {
             <div className="flex-1 min-h-[440px] lg:min-h-[500px] relative p-3 sm:p-4 flex flex-col lg:flex-row gap-3 bg-[#fbfcfd] overflow-hidden">
               {/* Left/Center: Interactive Visual Simulation */}
               <div className="flex-1 relative flex flex-col min-h-[320px]">
-                {/* Course 1: Físico-Química de Gases & Fisiología */}
+                {/* Bloque 1: Materia y Energía en el Organismo Humano */}
+                {currentScene.simulationType === 'pure-vs-applied-chemistry' && <SceneBlock1Pillars />}
+                {currentScene.simulationType === 'bioenergetics-nutrition' && <SceneBlock1Bioenergetics />}
+                {currentScene.simulationType === 'chemical-bonds-electrolytes' && <SceneBlock1ChemicalBonds />}
+                {currentScene.simulationType === 'inorganic-functions-clinical' && <SceneBlock1InorganicFunctions />}
+                {currentScene.simulationType === 'water-solutions-tonicity' && <SceneBlock1WaterTonicity />}
+                {currentScene.simulationType === 'ph-henderson-hasselbalch' && <SceneBlock1AcidBaseBalance />}
+                {currentScene.simulationType === 'block1-clinical-challenge' && <SceneBlock1ClinicalChallenge />}
+
+                {/* Bloque 2: Físico-Química de Gases & Fisiología */}
                 {currentScene.simulationType === 'kinetic-theory' && <Scene1KineticTheory />}
                 {currentScene.simulationType === 'state-variables' && <Scene2StateVariables />}
                 {currentScene.simulationType === 'gas-laws' && <Scene3GasLawsSimulator />}
+                {currentScene.simulationType === 'combined-gas-law' && <SceneBlock2CombinedAvogadro />}
                 {currentScene.simulationType === 'ideal-gas-derivation' && <Scene4IdealGasSynthesis />}
                 {currentScene.simulationType === 'gas-mixtures-diffusion' && <Scene5GasMixtures />}
                 {currentScene.simulationType === 'alveolar-physiology' && <Scene6RespiratoryPhysiology />}
+                {currentScene.simulationType === 'gas-transport-hb' && <SceneBlock2GasTransportHb />}
                 {currentScene.simulationType === 'clinical-challenge' && <Scene7ClinicalChallenge />}
 
-                {/* Course 2: Biomoléculas & Membranas Biológicas */}
+                {/* Bloque 3: Química Orgánica, Biomoléculas & Membranas */}
                 {currentScene.simulationType === 'carbon-organic-origin' && <SceneBio1CarbonOrigin />}
                 {currentScene.simulationType === 'carbohydrates-stereochem' && <SceneBio2Carbohydrates />}
                 {currentScene.simulationType === 'disaccharides-polysaccharides' && <SceneBio3DisaccharidesHaworth />}
                 {currentScene.simulationType === 'lipids-triglycerides' && <SceneBio4LipidsTriglycerides />}
                 {currentScene.simulationType === 'specialized-lipids' && <SceneBio5SpecializedLipids />}
+                {currentScene.simulationType === 'proteins-enzymes-kinetics' && <SceneBioProteinsEnzymes />}
                 {currentScene.simulationType === 'fluid-mosaic-membrane' && <SceneBio6FluidMosaicMembrane />}
+                {currentScene.simulationType === 'biomolecules-solved-problems' && <SceneBioSolvedProblems />}
                 {currentScene.simulationType === 'biomolecules-clinical-challenge' && <SceneBio7BiomoleculesChallenge />}
+                {currentScene.simulationType === 'biomolecules-exam-quiz' && <SceneBioBlock3ExamQuiz />}
               </div>
 
               {/* Right: Prof. Aquila Mascot Character Stage */}
@@ -690,10 +854,7 @@ export default function App() {
                   mood={mascotMood}
                   isSpeaking={isSpeaking}
                   currentSpeechText={currentSpeechSegment?.text}
-                  customVisualUrl={
-                    customVisualsByScene[`${currentCourse.id}-${currentScene.id}`] ||
-                    currentScene.customVisualUrl
-                  }
+                  customVisualUrl={currentScene.customVisualUrl}
                   size="md"
                   showBadge={true}
                   onClick={() => setIsTutorOpen(true)}
@@ -713,7 +874,7 @@ export default function App() {
                   <div className="mx-auto max-w-2xl bg-white/95 border-2 border-[#E51B23] rounded-xl px-4 py-2.5 text-center shadow-md backdrop-blur-xs">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
                       <span className="text-[10px] text-[#E51B23] font-bold tracking-wider uppercase block">
-                        {currentSpeechSegment.speaker} (Mascota Universitaria):
+                        Profesor Aguilar (Mascota Universitaria):
                       </span>
                       <button
                         onClick={() => {
@@ -747,12 +908,11 @@ export default function App() {
               scenes={scenes}
               onSelectScene={handleSelectScene}
               voiceEnabled={voiceEnabled}
-              onToggleVoice={() => setVoiceEnabled(!voiceEnabled)}
+              onToggleVoice={handleToggleVoice}
               subtitlesEnabled={subtitlesEnabled}
               onToggleSubtitles={() => setSubtitlesEnabled(!subtitlesEnabled)}
               playbackSpeed={playbackSpeed}
-              onChangeSpeed={setPlaybackSpeed}
-              onOpenImageGen={() => setIsImageGenOpen(true)}
+              onChangeSpeed={handleChangeSpeed}
               onOpenTutor={() => setIsTutorOpen(true)}
               onOpenGlossary={() => {
                 setSelectedGlossaryTermId(null);
@@ -776,9 +936,81 @@ export default function App() {
                 Guion de Video Educativo Universitario: {currentCourse.title}
               </h2>
               <p className="text-xs text-neutral-500 mt-1">
-                Nivel: {currentCourse.academicLevel} • Presentador: Aquila • {currentCourse.scenery} • {UNIVERSITY_INFO.institution}
+                Nivel: {currentCourse.academicLevel} • Presentador: Profesor Aguilar • {currentCourse.scenery} • {UNIVERSITY_INFO.institution}
               </p>
             </div>
+
+            {/* Syllabus Matrix & Academic Planning Card */}
+            {currentCourse.dates && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-[#E51B23] text-white font-mono font-bold text-xs">
+                      Bloque {currentCourse.blockNumber || 1}
+                    </span>
+                    <span className="text-xs font-bold text-neutral-800">
+                      Vigencia Académica: {currentCourse.dates}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-neutral-500">
+                    Sílabo de Química Aplicada a la Medicina
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                  {/* Practical Labs */}
+                  {currentCourse.practicalLabs && currentCourse.practicalLabs.length > 0 && (
+                    <div className="p-3 bg-white rounded-lg border border-neutral-200">
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase font-mono block mb-1.5">
+                        Prácticas de Laboratorio ({currentCourse.practicalLabs.length})
+                      </span>
+                      <ul className="space-y-1 text-neutral-700 text-[11px]">
+                        {currentCourse.practicalLabs.map((lab, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-[#E51B23] font-bold">•</span>
+                            <span>{lab}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Evaluations */}
+                  {currentCourse.evaluations && currentCourse.evaluations.length > 0 && (
+                    <div className="p-3 bg-white rounded-lg border border-neutral-200">
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase font-mono block mb-1.5">
+                        Evaluaciones Oficiales
+                      </span>
+                      <ul className="space-y-1 text-neutral-700 text-[11px]">
+                        {currentCourse.evaluations.map((ev, i) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-blue-600 font-bold">•</span>
+                            <span>{ev}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Backing Documents */}
+                  {currentCourse.supportDocuments && currentCourse.supportDocuments.length > 0 && (
+                    <div className="p-3 bg-white rounded-lg border border-neutral-200">
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase font-mono block mb-1.5">
+                        Documentos de Respaldo Cátedra
+                      </span>
+                      <ul className="space-y-1.5 text-neutral-700 text-[11px]">
+                        {currentCourse.supportDocuments.map((doc, i) => (
+                          <li key={i} className="flex items-start gap-1.5 font-mono text-[10px] text-neutral-600">
+                            <span className="text-emerald-600 font-bold">📄</span>
+                            <span className="break-all">{doc}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Interactive Academic Glossary Banner */}
             <div className="bg-red-50/70 border border-red-200 rounded-xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -812,7 +1044,7 @@ export default function App() {
 
             {/* Scene Cards List */}
             <div className="space-y-4">
-              {scenes.map((scene) => {
+              {scenes.map((scene, sceneIdx) => {
                 const isCurrent = scene.id === currentScene.id;
                 return (
                   <div
@@ -852,7 +1084,9 @@ export default function App() {
                         <div key={seg.id} className="text-xs text-neutral-800 group">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <strong className="text-[#E51B23]">{seg.speaker}:</strong>{' '}
+                              <strong className="text-[#E51B23]">
+                                {seg.speaker === 'AQUILA' || seg.speaker === 'Aquila' ? 'Prof. Aguilar' : seg.speaker}:
+                              </strong>{' '}
                               <GlossaryHighlighter
                                 text={seg.text}
                                 onTermClick={handleOpenGlossaryTerm}
@@ -871,7 +1105,7 @@ export default function App() {
                                 handleSeek(scene.startSeconds + seg.timestampStart);
                                 setIsPlaying(true);
                                 setVoiceEnabled(true);
-                                speakCurrentSpeech(seg);
+                                speakCurrentSpeech(seg, sceneIdx);
                               }}
                               className="shrink-0 inline-flex items-center gap-1 text-[10px] text-neutral-500 hover:text-[#E51B23] bg-neutral-100 hover:bg-red-50 px-2 py-1 rounded border border-neutral-200 hover:border-red-200 cursor-pointer transition-colors"
                               title="Reproducir este diálogo"
@@ -928,7 +1162,7 @@ export default function App() {
                     Identidad Universitaria
                   </span>
                   <h3 className="text-xl font-bold text-neutral-900 mt-0.5">
-                    Aquila — La Mascota Docente de la Universidad Católica de Cuenca
+                    Profesor Aguilar — La Mascota Docente de la Universidad Católica de Cuenca
                   </h3>
                   <p className="text-neutral-600 mt-1">
                     Representación antropomórfica del espíritu de liderazgo, excelencia médica y rigor científico del Campus Macas.
@@ -941,7 +1175,7 @@ export default function App() {
                       🥼 Indumentaria Académica:
                     </h4>
                     <p className="text-neutral-700">
-                      Bata médica blanca de laboratorio universitario abierta sobre su sudadera roja universitaria (#SomosÁguilasRojas), gafas de protección científica al cuello y puntero láser de precisión para la pizarra interactiva.
+                      Bata médica blanca de laboratorio universitario con estetoscopio al cuello, gafas modernas de montura verde azulada (teal), camisa polo roja con ribete blanco y corbata vinotinto rayada (#SomosÁguilasRojas), y puntero láser metálico telescópico para la pizarra interactiva.
                     </p>
                   </div>
 
@@ -950,7 +1184,7 @@ export default function App() {
                       🦅 Fisionomía:
                     </h4>
                     <p className="text-neutral-700">
-                      Plumaje craneal blanco radiante, pico curvado dorado expresivo, ojos castaños con mirada penetrante y determinada, transmitiendo la pasión por la enseñanza biomédica.
+                      Plumaje craneal blanco radiante coronado con cresta escarlata, cuello con collarín de plumas rojas, pico curvado dorado expresivo y ojos ambarinos de mirada viva y determinada.
                     </p>
                   </div>
 
@@ -966,25 +1200,17 @@ export default function App() {
                 </div>
 
                 <button
-                  onClick={() => setIsImageGenOpen(true)}
-                  className="w-full py-3 bg-[#E51B23] hover:bg-[#c4141b] text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-2 transition-colors"
+                  onClick={() => setIsTutorOpen(true)}
+                  className="w-full py-3 bg-[#E51B23] hover:bg-[#c4141b] text-white font-bold rounded-lg shadow-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generar Nuevas Ilustraciones de Aquila con Gemini</span>
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Consultorio Académico con el Prof. Aguilar (Tutor IA)</span>
                 </button>
               </div>
             </div>
           </div>
         )}
       </main>
-
-      {/* AI Image Generation Studio Modal */}
-      <ImageGeneratorModal
-        isOpen={isImageGenOpen}
-        onClose={() => setIsImageGenOpen(false)}
-        onApplyImageToScene={handleApplyImageToScene}
-        currentSceneTitle={currentScene.title}
-      />
 
       {/* Student Consultation Tutor Chat Modal */}
       <AquilaTutorChat

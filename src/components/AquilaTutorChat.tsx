@@ -19,7 +19,7 @@ const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
     sender: 'aquila',
-    text: '¡Saludos, colega! Soy Aquila. Estoy atento a cualquier duda sobre bioquímica, biomoléculas, membranas celulares o la fisiología respiratoria. ¿En qué puedo orientarte hoy?',
+    text: '¡Saludos, colega! Soy el Profesor Aguilar. Estoy atento a cualquier duda sobre bioquímica, biomoléculas, membranas celulares o la fisicoquímica respiratoria. ¿En qué puedo orientarte hoy?',
     timestamp: 'Ahora',
   },
 ];
@@ -98,7 +98,7 @@ export const AquilaTutorChat: React.FC<AquilaTutorChatProps> = ({
             </div>
             <div>
               <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                Consultorio Académico con Prof. Aquila
+                Consultorio Académico con el Prof. Aguilar
               </h4>
               <p className="text-[10px] text-neutral-400 font-medium">
                 Universidad Católica de Cuenca • <span className="text-[#E51B23]">{currentSceneTitle}</span>
@@ -130,7 +130,7 @@ export const AquilaTutorChat: React.FC<AquilaTutorChatProps> = ({
                 {m.sender === 'aquila' && (
                   <div className="text-[10px] text-[#E51B23] font-bold mb-1 flex items-center gap-1">
                     <Sparkles className="w-3 h-3" />
-                    Prof. Aquila
+                    Prof. Aguilar
                   </div>
                 )}
                 <p className="whitespace-pre-wrap">{m.text}</p>
@@ -144,7 +144,7 @@ export const AquilaTutorChat: React.FC<AquilaTutorChatProps> = ({
           {isLoading && (
             <div className="flex items-center gap-2 text-neutral-600 text-xs italic p-2.5 bg-white border border-neutral-200 rounded-xl max-w-[75%] shadow-xs">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E51B23]" />
-              <span>Aquila está redactando la respuesta académica...</span>
+              <span>El Prof. Aguilar está redactando la respuesta académica...</span>
             </div>
           )}
         </div>
@@ -155,7 +155,7 @@ export const AquilaTutorChat: React.FC<AquilaTutorChatProps> = ({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Pregúntale a Aquila sobre este tema..."
+            placeholder="Pregúntale al Prof. Aguilar sobre este tema..."
             className="flex-1 bg-white border border-neutral-300 rounded-lg px-3 py-2 text-xs text-neutral-900 focus:border-[#E51B23] focus:outline-none focus:ring-1 focus:ring-[#E51B23] shadow-xs"
           />
           <button

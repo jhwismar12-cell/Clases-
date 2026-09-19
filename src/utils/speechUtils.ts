@@ -2,7 +2,8 @@
 
 /**
  * Prepares scientific and university text for natural, smooth Spanish text-to-speech.
- * Expands formulas, units, abbreviations, and symbols so Web Speech API doesn't stumble or abort.
+ * Expands formulas, units, abbreviations, and symbols so Web Speech API doesn't stumble,
+ * pause abruptly, or abort mid-sentence.
  */
 export function prepareTextForSpeech(text: string): string {
   if (!text) return '';
@@ -10,6 +11,8 @@ export function prepareTextForSpeech(text: string): string {
   return text
     // Remove emojis or special action markers if any
     .replace(/[\u{1F300}-\u{1F9FF}]/gu, '')
+    // Replace em-dashes and long dashes with clean commas so TTS doesn't stumble
+    .replace(/[—–]/g, ', ')
     // LaTeX and mathematical expressions cleanup
     .replace(/\\\(\s*4\\text\{\s*kcal\/g\s*\}\s*\\\)/gi, 'cuatro kilocalorías por gramo')
     .replace(/\\\(\s*17\\text\{\s*kJ\/g\s*\}\s*\\\)/gi, 'diecisiete kilojulios por gramo')
@@ -23,6 +26,16 @@ export function prepareTextForSpeech(text: string): string {
     .replace(/\\beta/g, 'beta')
     .replace(/\\\(/g, '')
     .replace(/\\\)/g, '')
+    // Clinical laboratory units & abbreviations
+    .replace(/\bmOsm\/L\b/gi, 'miliosmoles por litro')
+    .replace(/\bmEq\/L\b/gi, 'miliequivalentes por litro')
+    .replace(/\bmg\/dL\b/gi, 'miligramos por decilitro')
+    .replace(/\bg\/dL\b/gi, 'gramos por decilitro')
+    .replace(/\bmL\b/g, 'mililitros')
+    .replace(/\bs\.n\.m\.\b/gi, 'sobre el nivel del mar')
+    .replace(/\bUCI\b/g, 'unidad de cuidados intensivos')
+    .replace(/\bUCACUE\b/g, 'Universidad Católica de Cuenca')
+    .replace(/\bpH\b/g, 'p H')
     // Biochemistry units & caloric values
     .replace(/\b4\s*kcal\/g\b/gi, 'cuatro kilocalorías por gramo')
     .replace(/\b17\s*kJ\/g\b/gi, 'diecisiete kilojulios por gramo')
@@ -99,6 +112,7 @@ export function prepareTextForSpeech(text: string): string {
     .replace(/Δ\s*60/g, 'delta de sesenta')
     .replace(/Δ\s*6/g, 'delta de seis')
     .replace(/Δ/g, 'delta ')
+    .replace(/±/g, ' más o menos ')
     .replace(/·/g, ' por ')
     .replace(/×/g, ' por ')
     .replace(/%/g, ' por ciento')
@@ -106,3 +120,46 @@ export function prepareTextForSpeech(text: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 }
+
+/**
+ * Splits formatted speech text into natural, digestible sentence or clause chunks (~15-25 words)
+ * so that Web Speech API never exceeds browser internal timeouts (such as the 15-second Chrome cutoff bug)
+ * and flows continuously without abrupt pauses, stutters, or clipped words.
+ */
+export function splitTextIntoSpeechChunks(text: string): string[] {
+  if (!text) return [];
+  const clean = text.trim();
+  if (!clean) return [];
+
+  // Split on sentence terminators (. ! ?) followed by whitespace or end of string
+  const rawSentences = clean.split(/(?<=[.!?])\s+/);
+  const chunks: string[] = [];
+
+  for (const raw of rawSentences) {
+    const s = raw.trim();
+    if (!s) continue;
+
+    // If already reasonably sized (<= 160 chars), keep intact
+    if (s.length <= 160) {
+      chunks.push(s);
+    } else {
+      // For longer sentences, split at colons, semicolons, or natural conjunctions
+      const subParts = s.split(/(?<=[;:])\s+|(?<=,\s+(?:donde|cuando|la cual|el cual|los cuales|las cuales|mientras|debido a que|por lo tanto|lo que))\s*/i);
+      let buffer = '';
+      for (const part of subParts) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+        if ((buffer + ' ' + trimmed).trim().length <= 160) {
+          buffer = (buffer + ' ' + trimmed).trim();
+        } else {
+          if (buffer) chunks.push(buffer);
+          buffer = trimmed;
+        }
+      }
+      if (buffer) chunks.push(buffer);
+    }
+  }
+
+  return chunks.length > 0 ? chunks : [clean];
+}
+

@@ -8,22 +8,35 @@ export type MascotMood =
   | 'celebrating';
 
 export type InteractiveSimulationType =
-  // Course 1: Gases & Respiratory
+  // Bloque 1: Materia y Energía en el Organismo Humano (14-09-2026 al 16-10-2026)
+  | 'pure-vs-applied-chemistry'
+  | 'bioenergetics-nutrition'
+  | 'chemical-bonds-electrolytes'
+  | 'inorganic-functions-clinical'
+  | 'water-solutions-tonicity'
+  | 'ph-henderson-hasselbalch'
+  | 'block1-clinical-challenge'
+  // Bloque 2: Gases y su Aplicación en Medicina (19-10-2026 al 10-11-2026)
   | 'kinetic-theory'
   | 'state-variables'
   | 'gas-laws'
+  | 'combined-gas-law'
   | 'ideal-gas-derivation'
   | 'gas-mixtures-diffusion'
   | 'alveolar-physiology'
+  | 'gas-transport-hb'
   | 'clinical-challenge'
-  // Course 2: Biomolecules & Cell Membranes
+  // Bloque 3: Química Orgánica y Biomoléculas (24-11-2026 al 22-01-2027)
   | 'carbon-organic-origin'
   | 'carbohydrates-stereochem'
   | 'disaccharides-polysaccharides'
   | 'lipids-triglycerides'
   | 'specialized-lipids'
+  | 'proteins-enzymes-kinetics'
   | 'fluid-mosaic-membrane'
-  | 'biomolecules-clinical-challenge';
+  | 'biomolecules-solved-problems'
+  | 'biomolecules-clinical-challenge'
+  | 'biomolecules-exam-quiz';
 
 export interface SceneSpeechSegment {
   id: string;
@@ -57,6 +70,8 @@ export interface ScriptScene {
 
 export interface MasterclassCourse {
   id: string;
+  blockNumber: number;
+  dates: string;
   title: string;
   shortTitle: string;
   badge: string;
@@ -66,6 +81,9 @@ export interface MasterclassCourse {
   presenterDesc: string;
   scenery: string;
   totalDurationFormatted: string;
+  practicalLabs?: string[];
+  evaluations?: string[];
+  supportDocuments?: string[];
   scenes: ScriptScene[];
 }
 

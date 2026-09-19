@@ -9,7 +9,6 @@ import {
   VolumeX,
   Subtitles,
   Maximize,
-  Sparkles,
   MessageSquare,
   Sliders,
   Film,
@@ -33,7 +32,7 @@ interface VideoPlayerControlsProps {
   onToggleSubtitles: () => void;
   playbackSpeed: number;
   onChangeSpeed: (speed: number) => void;
-  onOpenImageGen: () => void;
+  onOpenImageGen?: () => void;
   onOpenTutor: () => void;
   onOpenGlossary?: () => void;
   isInteractiveMode: boolean;
@@ -188,7 +187,7 @@ export const VideoPlayerControls: React.FC<VideoPlayerControlsProps> = ({
                 ? 'bg-red-50 border-red-300 text-[#E51B23]'
                 : 'bg-neutral-50 border-neutral-200 text-neutral-400'
             }`}
-            title={voiceEnabled ? 'Voz de Aquila Activada' : 'Voz Silenciada'}
+            title={voiceEnabled ? 'Voz del Prof. Aguilar Activada' : 'Voz Silenciada'}
           >
             {voiceEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
           </button>
@@ -219,21 +218,11 @@ export const VideoPlayerControls: React.FC<VideoPlayerControlsProps> = ({
             <option value={1.5}>1.5x</option>
           </select>
 
-          {/* Gemini Image Studio Button */}
-          <button
-            onClick={onOpenImageGen}
-            className="px-2.5 py-1 bg-[#E51B23] hover:bg-[#c4141b] text-white rounded-lg font-semibold text-[11px] flex items-center gap-1 shadow-xs transition-all"
-            title="Generador de Imágenes Gemini (1K, 2K, 4K y Ratios)"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Generar Imagen</span>
-          </button>
-
           {/* Tutor Chat Button */}
           <button
             onClick={onOpenTutor}
-            className="p-1.5 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 rounded-lg border border-neutral-200 hover:text-[#E51B23] transition-colors"
-            title="Consultar a Aquila con IA"
+            className="p-1.5 bg-neutral-50 hover:bg-neutral-100 text-neutral-700 rounded-lg border border-neutral-200 hover:text-[#E51B23] transition-colors cursor-pointer"
+            title="Consultar al Prof. Aguilar con IA"
           >
             <MessageSquare className="w-4 h-4 text-[#E51B23]" />
           </button>

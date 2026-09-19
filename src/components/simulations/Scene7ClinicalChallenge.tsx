@@ -38,7 +38,7 @@ export const Scene7ClinicalChallenge: React.FC = () => {
       console.error(error);
       // Fallback feedback if network or server issue
       setFeedback(
-        'Evaluación de Aquila: ¡Muy buen intento! Recuerda que según la Ley de Dalton, P_total es la suma de todas las presiones parciales. Al hiperventilar, la PCO2 cae de 40 a 25 mmHg, lo que provoca una alcalosis respiratoria aguda debido a la ecuación de Henderson-Hasselbalch. ¡Sigue volando alto! #SomosÁguilasRojas'
+        'Evaluación del Prof. Aguilar: ¡Muy buen intento! Recuerda que según la Ley de Dalton, P_total es la suma de todas las presiones parciales. Al hiperventilar, la PCO2 cae de 40 a 25 mmHg, lo que provoca una alcalosis respiratoria aguda debido a la ecuación de Henderson-Hasselbalch. ¡Sigue volando alto! #SomosÁguilasRojas'
       );
     } finally {
       setIsSubmitting(false);
@@ -157,12 +157,12 @@ export const Scene7ClinicalChallenge: React.FC = () => {
               {isSubmitting ? (
                 <>
                   <BrainCircuit className="w-4 h-4 animate-spin text-white" />
-                  <span>Prof. Aquila evaluando tu respuesta médica...</span>
+                  <span>El Prof. Aguilar evaluando tu respuesta médica...</span>
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>Enviar al Prof. Aquila para Calificación</span>
+                  <span>Enviar al Prof. Aguilar para Calificación</span>
                 </>
               )}
             </button>
@@ -173,7 +173,7 @@ export const Scene7ClinicalChallenge: React.FC = () => {
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-neutral-800 text-xs shadow-xs">
               <div className="flex items-center gap-1.5 font-bold text-red-700 mb-1">
                 <Sparkles className="w-4 h-4 text-red-600" />
-                <span>Dictamen del Prof. Aquila (#SomosÁguilasRojas):</span>
+                <span>Dictamen del Prof. Aguilar (#SomosÁguilasRojas):</span>
               </div>
               <div className="whitespace-pre-line leading-relaxed text-[11px] text-neutral-700">
                 {feedback}

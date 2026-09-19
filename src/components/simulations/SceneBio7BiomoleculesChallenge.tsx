@@ -74,7 +74,7 @@ export const SceneBio7BiomoleculesChallenge: React.FC = () => {
         <div className="bg-slate-50 border-l-4 border-[#E51B23] p-3.5 rounded-r-xl space-y-1 text-xs text-neutral-800 shadow-xs">
           <div className="flex items-center gap-1.5 font-bold text-neutral-900">
             <AlertTriangle className="w-4 h-4 text-[#E51B23]" />
-            Caso Clínico Propuesto por Aquila:
+            Caso Clínico Propuesto por el Prof. Aguilar:
           </div>
           <p className="leading-relaxed text-[11px] text-neutral-700">
             «Neonato de 5 días de vida presenta rechazo a las tomas de leche materna, letargia, ictericia rápidamente progresiva y hepatomegalia. En la exploración oftalmológica se detecta opacidad temprana bilateral del cristalino (cataratas nucleares). Los exámenes de laboratorio revelan sustancias reductoras y galactosa en orina.»
@@ -237,7 +237,7 @@ export const SceneBio7BiomoleculesChallenge: React.FC = () => {
                 ) : (
                   <>
                     <AlertTriangle className="w-5 h-5 text-amber-600" />
-                    <span>Revisión de respuestas requerida por el Catedrático Aquila:</span>
+                    <span>Revisión de respuestas requerida por el Catedrático Aguilar:</span>
                   </>
                 )}
               </div>

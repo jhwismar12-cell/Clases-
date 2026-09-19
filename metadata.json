@@ -1,6 +1,6 @@
 {
-  "name": "Clase Interactiva: Gases Ideales y Fisiología Respiratoria",
-  "description": "Video clases educativas universitarias presentadas por Aquila, mascota de la Universidad Católica de Cuenca, sobre gases ideales, fisiología respiratoria, química orgánica, biomoléculas y membranas biológicas con simulaciones interactivas.",
+  "name": "Química Aplicada a la Medicina - Cátedra Universitaria UCACUE",
+  "description": "Plataforma universitaria de clases interactivas por bloques del Sílabo de Química Aplicada a la Medicina (Materia y Energía, Gases Fisiológicos, Química Orgánica y Biomoléculas) guiada por el Prof. Aquila.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
